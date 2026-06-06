@@ -1,45 +1,31 @@
-from pathlib import Path
-
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
+from dotenv import load_dotenv
 
+load_dotenv()
 
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+VECTOR_STORE_PATH = "data/faiss_index"
 
 
 class SimpleRAG:
-    def __init__(self, knowledge_base_path: str):
-        self.knowledge_base_path = knowledge_base_path
+
+    def __init__(self):
 
         self.embeddings = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL
         )
 
+        self.vector_store = FAISS.load_local(
+            VECTOR_STORE_PATH,
+            self.embeddings,
+            allow_dangerous_deserialization=True
+        )
+
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             temperature=0
-        )
-
-        self.vector_store = self._build_vectorstore()
-
-    def _build_vectorstore(self):
-        text = Path(self.knowledge_base_path).read_text(
-            encoding="utf-8"
-        )
-
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=100
-        )
-
-        chunks = splitter.split_text(text)
-
-        return FAISS.from_texts(
-            texts=chunks,
-            embedding=self.embeddings
         )
 
     def generate_answer(self, question: str) -> str:
@@ -53,16 +39,15 @@ class SimpleRAG:
             doc.page_content for doc in docs
         )
 
-        prompt = PromptTemplate.from_template(
-            """
-You are a question-answering assistant.
+        prompt = f"""
+You are a GCP assistant.
 
 Answer ONLY using the provided context.
 
-If the answer is not available in the context,
-say:
+If the answer is not present in the context,
+respond with:
 
-"I could not find the answer in the provided knowledge base."
+"I could not find the answer in the provided document."
 
 Context:
 {context}
@@ -72,13 +57,7 @@ Question:
 
 Answer:
 """
-        )
 
-        final_prompt = prompt.format(
-            context=context,
-            question=question
-        )
-
-        response = self.llm.invoke(final_prompt)
+        response = self.llm.invoke(prompt)
 
         return response.content.strip()
