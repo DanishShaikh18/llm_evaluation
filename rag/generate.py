@@ -1,12 +1,15 @@
+from dotenv import load_dotenv
+
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
-from dotenv import load_dotenv
+
 
 load_dotenv()
 
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 VECTOR_STORE_PATH = "data/faiss_index"
+
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 class SimpleRAG:
@@ -36,16 +39,17 @@ class SimpleRAG:
         )
 
         context = "\n\n".join(
-            doc.page_content for doc in docs
+            doc.page_content
+            for doc in docs
         )
 
         prompt = f"""
-You are a GCP assistant.
+You are a GCP learning assistant.
 
-Answer ONLY using the provided context.
+Use ONLY the provided context.
 
-If the answer is not present in the context,
-respond with:
+If the answer is not found in the context,
+say:
 
 "I could not find the answer in the provided document."
 
